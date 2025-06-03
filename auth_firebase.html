@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Auth App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 2rem;
+            font-size: 2rem;
+            font-weight: 300;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        button {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .secondary-btn {
+            background: transparent;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .secondary-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .user-card {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+            text-align: left;
+        }
+
+        .user-card strong {
+            color: #333;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .logout-btn {
+            width: auto;
+            padding: 0.5rem 1rem;
+            background: #e74c3c;
+            font-size: 0.9rem;
+        }
+
+        .logout-btn:hover {
+            background: #c0392b;
+        }
+
+        .loading {
+            color: #667eea;
+            font-style: italic;
+        }
+
+        .error {
+            color: #e74c3c;
+            background: rgba(231, 76, 60, 0.1);
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 1rem 0;
+        }
+
+        .success {
+            color: #27ae60;
+            background: rgba(39, 174, 96, 0.1);
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Login Page -->
+    <div id="loginPage" class="page active">
+        <div class="container">
+            <h1>Welcome Back</h1>
+            <div id="loginError" class="error" style="display: none;"></div>
+            <div class="form-group">
+                <input type="email" id="loginEmail" placeholder="Email Address" required>
+            </div>
+            <div class="form-group">
+                <input type="password" id="loginPassword" placeholder="Password" required>
+            </div>
+            <button onclick="login()">Sign In</button>
+            <button class="secondary-btn" onclick="showRegister()">Create Account</button>
+        </div>
+    </div>
+
+    <!-- Register Page -->
+    <div id="registerPage" class="page">
+        <div class="container">
+            <h1>Create Account</h1>
+            <div id="registerError" class="error" style="display: none;"></div>
+            <div id="registerSuccess" class="success" style="display: none;"></div>
+            <div class="form-group">
+                <input type="text" id="registerUsername" placeholder="Username" required>
+            </div>
+            <div class="form-group">
+                <input type="email" id="registerEmail" placeholder="Email Address" required>
+            </div>
+            <div class="form-group">
+                <input type="password" id="registerPassword" placeholder="Password" required>
+            </div>
+            <button onclick="register()">Create Account</button>
+            <button class="secondary-btn" onclick="showLogin()">Back to Login</button>
+        </div>
+    </div>
+
+    <!-- Dashboard Page -->
+    <div id="dashboardPage" class="page">
+        <div class="container" style="max-width: 600px;">
+            <div class="dashboard-header">
+                <h1>Dashboard</h1>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+            <div id="currentUser" class="user-card" style="border-left-color: #27ae60;">
+                <strong>Current User:</strong> <span id="currentUserEmail"></span>
+            </div>
+            <h2 style="margin: 2rem 0 1rem 0; color: #333;">All Users</h2>
+            <div id="usersList">
+                <div class="loading">Loading users...</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import Firebase functions
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-analytics.js";
+        import {
+            getAuth,
+            createUserWithEmailAndPassword,
+            signInWithEmailAndPassword,
+            signOut,
+            onAuthStateChanged
+        } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+        import {
+            getDatabase,
+            ref,
+            push,
+            set,
+            get,
+            onValue
+        } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDR8iWZeMXxjlspy8KjfMTOyOCtf7OBA-A",
+            authDomain: "apph-2a115.firebaseapp.com",
+            databaseURL: "https://apph-2a115-default-rtdb.firebaseio.com",
+            projectId: "apph-2a115",
+            storageBucket: "apph-2a115.firebasestorage.app",
+            messagingSenderId: "940552691341",
+            appId: "1:940552691341:web:ac39768b85c3b7b0958cc4",
+            measurementId: "G-JPZ7LZZ8QC"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const db = getDatabase(app);
+        const auth = getAuth(app);
+
+        // Page navigation functions
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            document.getElementById(pageId).classList.add('active');
+        }
+
+        function showError(elementId, message) {
+            const errorEl = document.getElementById(elementId);
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+            setTimeout(() => {
+                errorEl.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(elementId, message) {
+            const successEl = document.getElementById(elementId);
+            successEl.textContent = message;
+            successEl.style.display = 'block';
+            setTimeout(() => {
+                successEl.style.display = 'none';
+            }, 3000);
+        }
+
+        // Authentication functions
+        window.showLogin = () => showPage('loginPage');
+        window.showRegister = () => showPage('registerPage');
+
+        window.register = async () => {
+            const username = document.getElementById('registerUsername').value.trim();
+            const email = document.getElementById('registerEmail').value.trim();
+            const password = document.getElementById('registerPassword').value;
+
+            if (!username || !email || !password) {
+                showError('registerError', 'Please fill in all fields');
+                return;
+            }
+
+            if (password.length < 6) {
+                showError('registerError', 'Password must be at least 6 characters');
+                return;
+            }
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                // Save user data to database
+                await set(push(ref(db, "users")), {
+                    username: username,
+                    email: email,
+                    uid: user.uid,
+                    createdAt: new Date().toISOString()
+                });
+
+                showSuccess('registerSuccess', 'Account created successfully!');
+
+                // Clear form
+                document.getElementById('registerUsername').value = '';
+                document.getElementById('registerEmail').value = '';
+                document.getElementById('registerPassword').value = '';
+
+                // Redirect to dashboard after a short delay
+                setTimeout(() => showPage('dashboardPage'), 1500);
+
+            } catch (error) {
+                console.error('Registration error:', error);
+                showError('registerError', getErrorMessage(error.code));
+            }
+        };
+
+        window.login = async () => {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (!email || !password) {
+                showError('loginError', 'Please enter both email and password');
+                return;
+            }
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                showPage('dashboardPage');
+            } catch (error) {
+                console.error('Login error:', error);
+                showError('loginError', getErrorMessage(error.code));
+            }
+        };
+
+        window.logout = async () => {
+            try {
+                await signOut(auth);
+                showPage('loginPage');
+                // Clear form fields
+                document.getElementById('loginEmail').value = '';
+                document.getElementById('loginPassword').value = '';
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        };
+
+        // Error message helper
+        function getErrorMessage(errorCode) {
+            switch (errorCode) {
+                case 'auth/user-not-found':
+                    return 'No account found with this email address';
+                case 'auth/wrong-password':
+                    return 'Incorrect password';
+                case 'auth/email-already-in-use':
+                    return 'An account already exists with this email';
+                case 'auth/weak-password':
+                    return 'Password should be at least 6 characters';
+                case 'auth/invalid-email':
+                    return 'Please enter a valid email address';
+                case 'auth/too-many-requests':
+                    return 'Too many failed attempts. Please try again later';
+                default:
+                    return 'An error occurred. Please try again';
+            }
+        }
+
+        // Load users function
+        function loadUsers() {
+            const usersListEl = document.getElementById('usersList');
+
+            onValue(ref(db, "users"), (snapshot) => {
+                const users = snapshot.val();
+
+                if (!users) {
+                    usersListEl.innerHTML = '<div class="loading">No users found</div>';
+                    return;
+                }
+
+                const usersList = Object.values(users);
+                usersListEl.innerHTML = usersList.map(user => `
+                    <div class="user-card">
+                        <strong>Username:</strong> ${user.username || 'N/A'}<br>
+                        <strong>Email:</strong> ${user.email}<br>
+                        <strong>Joined:</strong> ${user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
+                    </div>
+                `).join('');
+            }, (error) => {
+                console.error('Error loading users:', error);
+                usersListEl.innerHTML = '<div class="error">Error loading users</div>';
+            });
+        }
+
+        // Auth state observer
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // User is signed in
+                document.getElementById('currentUserEmail').textContent = user.email;
+                showPage('dashboardPage');
+                loadUsers();
+            } else {
+                // User is signed out
+                showPage('loginPage');
+            }
+        });
+
+        // Enter key listeners
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const activePage = document.querySelector('.page.active');
+                if (activePage.id === 'loginPage') {
+                    login();
+                } else if (activePage.id === 'registerPage') {
+                    register();
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
