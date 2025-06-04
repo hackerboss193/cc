@@ -12,3 +12,16 @@ https://developer.salesforce.com/
 
 
 https://welcome.salesforce.com/
+
+
+version: 1
+frontend:
+  phases:
+    build:
+      commands: []
+  artifacts:
+    baseDirectory: .
+    files:
+      - '**/*'
+  cache:
+    paths: []
